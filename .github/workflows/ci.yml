@@ -31,7 +31,7 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run tests with 100% coverage gate
-        run: pytest
+        run: pytest --cov=osm_area_downloader --cov-report=term-missing --cov-fail-under=100
 
   geopackage-integration:
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_geopackage_tests }}
@@ -52,5 +52,5 @@ jobs:
           pip install ".[gpkg,test]"
 
       - name: Run GeoPackage integration tests
-        run: pytest tests/test_geopackage_integration.py -q --override-ini=addopts=
+        run: pytest tests/test_geopackage_integration.py -q
 

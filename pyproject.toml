@@ -25,6 +25,5 @@ test = [
 osm-area-downloader = "osm_area_downloader.cli:main"
 
 [tool.pytest.ini_options]
-addopts = "--cov=osm_area_downloader --cov-report=term-missing --cov-fail-under=100"
 testpaths = ["tests"]
 pythonpath = ["."]

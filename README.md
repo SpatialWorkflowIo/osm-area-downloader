@@ -132,7 +132,13 @@ python -m osm_area_downloader \
 
 ## Testing
 
-Run tests with strict 100% coverage:
+Run a quick local test pass:
+
+```bash
+pytest
+```
+
+Run tests with the strict 100% coverage gate used in CI:
 
 ```bash
 pytest --cov=osm_area_downloader --cov-report=term-missing --cov-fail-under=100
