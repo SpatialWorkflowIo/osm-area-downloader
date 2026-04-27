@@ -86,6 +86,50 @@ pip install geopandas
 
 If Overpass returns busy/timeout HTTP errors (for example 429 or 504), retry with a smaller bbox or use a focused preset like `--preset roads`.
 
+## Troubleshooting Overpass errors
+
+If the Overpass API is busy, common retry strategies are:
+
+- use a smaller bbox
+- use a focused preset instead of `all`
+- retry the same command a few minutes later
+
+### Retry with a smaller roads query
+
+```bash
+python -m osm_area_downloader \
+  --bbox "-0.150,51.500,-0.120,51.520" \
+  --preset roads \
+  --output london-roads.geojson
+```
+
+### Retry with a buildings-only query
+
+```bash
+python -m osm_area_downloader \
+  --bbox "-0.150,51.500,-0.120,51.520" \
+  --preset buildings \
+  --output london-buildings.geojson
+```
+
+### Retry with POIs only
+
+```bash
+python -m osm_area_downloader \
+  --bbox "-0.150,51.500,-0.120,51.520" \
+  --preset pois \
+  --output london-pois.geojson
+```
+
+### Retry by place name instead of bbox
+
+```bash
+python -m osm_area_downloader \
+  --place "Berlin" \
+  --preset roads \
+  --output berlin-roads.geojson
+```
+
 ## Testing
 
 Run tests with strict 100% coverage:

@@ -52,5 +52,5 @@ jobs:
           pip install ".[gpkg,test]"
 
       - name: Run GeoPackage integration tests
-        run: pytest tests/test_geopackage_integration.py -q
+        run: pytest tests/test_geopackage_integration.py -q --override-ini=addopts=
 
