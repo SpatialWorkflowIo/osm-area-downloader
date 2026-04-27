@@ -14,7 +14,7 @@ If you are new to GIS automation, this project gives you a simple one-line workf
 ```bash
 source .venv/bin/activate
 pip install -r requirements.txt
-python -m osm_area_downloader --bbox "-0.5103,51.2868,0.3340,51.6919" --output london.geojson
+python -m osm_area_downloader --bbox "-0.150,51.500,-0.120,51.520" --preset roads --output london-roads.geojson
 ```
 
 ## Why this tool exists
@@ -35,7 +35,8 @@ python -m osm_area_downloader --help
 
 ```bash
 python -m osm_area_downloader \
-  --bbox "-0.5103,51.2868,0.3340,51.6919" \
+  --bbox "-0.150,51.500,-0.120,51.520" \
+  --preset roads \
   --output london.geojson
 ```
 
@@ -82,6 +83,8 @@ If GeoPackage export fails because dependencies are missing, install:
 ```bash
 pip install geopandas
 ```
+
+If Overpass returns busy/timeout HTTP errors (for example 429 or 504), retry with a smaller bbox or use a focused preset like `--preset roads`.
 
 ## Testing
 

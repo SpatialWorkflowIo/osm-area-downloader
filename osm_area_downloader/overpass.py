@@ -9,7 +9,14 @@ import requests
 from .bbox import BoundingBox
 from .exceptions import DownloadError, InputError
 
-OVERPASS_URL = "https://overpass-api.de/api/interpreter"
+OVERPASS_URLS = (
+    "https://overpass-api.de/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter",
+)
+OVERPASS_HEADERS = {
+    "User-Agent": "osm-area-downloader/0.1 (+https://github.com/SpatialWorkflowIo/osm-area-downloader)",
+    "Accept": "application/json,text/plain,*/*",
+}
 
 
 def build_query(bbox: BoundingBox, preset: str = "all") -> str:
@@ -96,14 +103,40 @@ def fetch_geojson_features(
     active_session = session or requests.Session()
     query = build_query(bbox, preset=preset)
 
-    try:
-        response = active_session.post(OVERPASS_URL, data={"data": query}, timeout=timeout)
-        response.raise_for_status()
-    except requests.RequestException as exc:
-        raise DownloadError(f"failed to query Overpass API: {exc}") from exc
+    for index, url in enumerate(OVERPASS_URLS):
+        is_last = index == len(OVERPASS_URLS) - 1
+        try:
+            response = active_session.post(
+                url,
+                data={"data": query},
+                headers=OVERPASS_HEADERS,
+                timeout=timeout,
+            )
+            response.raise_for_status()
+            payload = response.json()
+            return osm_json_to_geojson(payload)
+        except requests.HTTPError as exc:
+            status = exc.response.status_code if exc.response is not None else "unknown"
+            message = _http_error_message(status=status, response_text=exc.response.text if exc.response else "", url=url)
+            if status in (429, 502, 503, 504) and not is_last:
+                continue
+            raise DownloadError(message) from exc
+        except requests.RequestException as exc:
+            if not is_last:
+                continue
+            raise DownloadError(f"failed to query Overpass API at {url}: {exc}") from exc
 
-    payload = response.json()
-    return osm_json_to_geojson(payload)
+    raise DownloadError("failed to query Overpass API on all configured endpoints")  # pragma: no cover
+
+
+def _http_error_message(status: int | str, response_text: str, url: str) -> str:
+    details = f" Response: {response_text[:200].strip()}" if response_text else ""
+    hint = ""
+    if status in (429, 502, 503, 504):
+        hint = " Try a smaller bbox or use --preset roads/buildings/pois."
+    elif status == 406:
+        hint = " Overpass rejected the request format. Please retry in a moment or choose a smaller query."
+    return f"failed to query Overpass API (HTTP {status}) at {url}.{hint}{details}"
 
 
 def osm_json_to_geojson(payload: dict[str, Any]) -> dict[str, Any]:

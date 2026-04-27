@@ -6,13 +6,15 @@ from osm_area_downloader.overpass import build_query, fetch_geojson_features, os
 
 
 class DummyResponse:
-    def __init__(self, payload, should_raise: bool = False):
+    def __init__(self, payload, should_raise: bool = False, status_code: int = 200, text: str = ""):
         self._payload = payload
         self._should_raise = should_raise
+        self.status_code = status_code
+        self.text = text
 
     def raise_for_status(self) -> None:
         if self._should_raise:
-            raise requests.HTTPError("bad status")
+            raise requests.HTTPError("bad status", response=self)
 
     def json(self):
         return self._payload
@@ -27,6 +29,27 @@ class DummySession:
         if self.exc:
             raise self.exc
         return self.response
+
+
+class CaptureSession:
+    def __init__(self, response):
+        self.response = response
+        self.last_headers = None
+
+    def post(self, *args, **kwargs):
+        self.last_headers = kwargs.get("headers")
+        return self.response
+
+
+class SequenceSession:
+    def __init__(self, responses):
+        self.responses = responses
+        self.calls = 0
+
+    def post(self, *args, **kwargs):
+        response = self.responses[self.calls]
+        self.calls += 1
+        return response
 
 
 def test_build_query_includes_bbox() -> None:
@@ -97,6 +120,14 @@ def test_fetch_geojson_features_success() -> None:
     assert len(result["features"]) == 1
 
 
+def test_fetch_geojson_features_sets_headers() -> None:
+    payload = {"elements": [{"type": "node", "id": 1, "lat": 1, "lon": 2}]}
+    session = CaptureSession(response=DummyResponse(payload))
+    fetch_geojson_features(BoundingBox(-1, -1, 1, 1), preset="roads", session=session)
+    assert session.last_headers is not None
+    assert "User-Agent" in session.last_headers
+
+
 def test_fetch_geojson_features_handles_request_errors() -> None:
     session = DummySession(exc=requests.RequestException("offline"))
     try:
@@ -105,4 +136,50 @@ def test_fetch_geojson_features_handles_request_errors() -> None:
         assert "Overpass" in str(exc)
     else:
         raise AssertionError("Expected DownloadError")
+
+
+def test_fetch_geojson_features_handles_http_errors_with_hint() -> None:
+    session = DummySession(
+        response=DummyResponse(
+            {"elements": []},
+            should_raise=True,
+            status_code=504,
+            text="busy",
+        )
+    )
+    try:
+        fetch_geojson_features(BoundingBox(-1, -1, 1, 1), session=session)
+    except DownloadError as exc:
+        assert "HTTP 504" in str(exc)
+        assert "smaller bbox" in str(exc)
+    else:
+        raise AssertionError("Expected DownloadError")
+
+
+def test_fetch_geojson_features_retries_on_busy_endpoint() -> None:
+    busy = DummyResponse({"elements": []}, should_raise=True, status_code=504, text="busy")
+    ok = DummyResponse({"elements": [{"type": "node", "id": 1, "lat": 1, "lon": 2}]})
+    session = SequenceSession([busy, ok])
+    result = fetch_geojson_features(BoundingBox(-1, -1, 1, 1), session=session)
+    assert session.calls == 2
+    assert len(result["features"]) == 1
+
+
+def test_fetch_geojson_features_reports_406_with_hint() -> None:
+    session = DummySession(
+        response=DummyResponse(
+            {"elements": []},
+            should_raise=True,
+            status_code=406,
+            text="not acceptable",
+        )
+    )
+    try:
+        fetch_geojson_features(BoundingBox(-1, -1, 1, 1), session=session)
+    except DownloadError as exc:
+        assert "HTTP 406" in str(exc)
+        assert "rejected" in str(exc)
+    else:
+        raise AssertionError("Expected DownloadError")
+
 
