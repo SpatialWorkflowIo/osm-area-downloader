@@ -1,6 +1,7 @@
 # OSM Area Downloader (GeoJSON + GeoPackage)
 
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](#quickstart)
+[![CI](https://github.com/SpatialWorkflowIo/osm-area-downloader/actions/workflows/ci.yml/badge.svg)](https://github.com/SpatialWorkflowIo/osm-area-downloader/actions/workflows/ci.yml)
 [![Tests](https://img.shields.io/badge/tests-pytest-green.svg)](#testing)
 [![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen.svg)](#testing)
 
@@ -55,11 +56,21 @@ python -m osm_area_downloader \
   --format gpkg
 ```
 
+### Example 4: Download roads only
+
+```bash
+python -m osm_area_downloader \
+  --place "Berlin" \
+  --preset roads \
+  --output berlin-roads.geojson
+```
+
 ## Input rules
 
 - Use exactly one of `--place` or `--bbox`.
 - `--bbox` must be in this order: `minlon,minlat,maxlon,maxlat`.
 - If `--format` is omitted, format is inferred from output extension (`.gpkg` => GeoPackage; otherwise GeoJSON).
+- `--preset` controls feature filtering: `all`, `roads`, `buildings`, `pois`.
 
 ## Output
 

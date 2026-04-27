@@ -34,7 +34,7 @@ def test_run_download_geojson(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr("osm_area_downloader.workflow.resolve_bbox", lambda place, bbox: BoundingBox(1, 2, 3, 4))
     monkeypatch.setattr(
         "osm_area_downloader.workflow.fetch_geojson_features",
-        lambda bbox: {"type": "FeatureCollection", "features": []},
+        lambda bbox, preset: {"type": "FeatureCollection", "features": []},
     )
 
     output = tmp_path / "out.geojson"
@@ -50,7 +50,7 @@ def test_run_download_gpkg_calls_writer(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr("osm_area_downloader.workflow.resolve_bbox", lambda place, bbox: BoundingBox(1, 2, 3, 4))
     monkeypatch.setattr(
         "osm_area_downloader.workflow.fetch_geojson_features",
-        lambda bbox: {"type": "FeatureCollection", "features": []},
+        lambda bbox, preset: {"type": "FeatureCollection", "features": []},
     )
 
     def fake_write_geopackage(feature_collection, output_path):
@@ -67,7 +67,7 @@ def test_run_download_rejects_unknown_format(monkeypatch, tmp_path: Path) -> Non
     monkeypatch.setattr("osm_area_downloader.workflow.resolve_bbox", lambda place, bbox: BoundingBox(1, 2, 3, 4))
     monkeypatch.setattr(
         "osm_area_downloader.workflow.fetch_geojson_features",
-        lambda bbox: {"type": "FeatureCollection", "features": []},
+        lambda bbox, preset: {"type": "FeatureCollection", "features": []},
     )
 
     try:
@@ -76,6 +76,21 @@ def test_run_download_rejects_unknown_format(monkeypatch, tmp_path: Path) -> Non
         assert "geojson" in str(exc)
     else:
         raise AssertionError("Expected InputError")
+
+
+def test_run_download_forwards_preset(monkeypatch, tmp_path: Path) -> None:
+    from osm_area_downloader.bbox import BoundingBox
+
+    seen = {"preset": ""}
+    monkeypatch.setattr("osm_area_downloader.workflow.resolve_bbox", lambda place, bbox: BoundingBox(1, 2, 3, 4))
+
+    def fake_fetch(bbox, preset):
+        seen["preset"] = preset
+        return {"type": "FeatureCollection", "features": []}
+
+    monkeypatch.setattr("osm_area_downloader.workflow.fetch_geojson_features", fake_fetch)
+    run_download(None, "1,2,3,4", tmp_path / "roads.geojson", "geojson", preset="roads")
+    assert seen["preset"] == "roads"
 
 
 def test_write_geojson(tmp_path: Path) -> None:

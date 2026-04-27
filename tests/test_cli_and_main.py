@@ -12,14 +12,24 @@ def test_infer_format_uses_suffix_and_explicit_option() -> None:
 
 
 def test_cli_success(monkeypatch, tmp_path: Path) -> None:
+    captured = {"preset": ""}
+
+    def fake_download(**kwargs):
+        captured["preset"] = kwargs["preset"]
+        return {"type": "FeatureCollection", "features": [{}, {}]}
+
     monkeypatch.setattr(
         "osm_area_downloader.cli.run_download",
-        lambda **kwargs: {"type": "FeatureCollection", "features": [{}, {}]},
+        fake_download,
     )
     runner = CliRunner()
-    result = runner.invoke(main, ["--bbox", "1,2,3,4", "--output", str(tmp_path / "out.geojson")])
+    result = runner.invoke(
+        main,
+        ["--bbox", "1,2,3,4", "--output", str(tmp_path / "out.geojson"), "--preset", "roads"],
+    )
     assert result.exit_code == 0
     assert "Downloaded 2 features" in result.output
+    assert captured["preset"] == "roads"
 
 
 def test_cli_handles_errors(monkeypatch, tmp_path: Path) -> None:
@@ -40,3 +50,11 @@ def test_main_module_importable() -> None:
     import osm_area_downloader.__main__ as entry
 
     assert entry.main is not None
+
+
+def test_cli_help_includes_preset_option() -> None:
+    runner = CliRunner()
+    result = runner.invoke(main, ["--help"])
+    assert result.exit_code == 0
+    assert "--preset" in result.output
+

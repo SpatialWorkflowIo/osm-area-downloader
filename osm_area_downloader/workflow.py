@@ -41,7 +41,13 @@ def resolve_bbox(place: str | None, bbox: str | None) -> BoundingBox:
     return parse_bbox(bbox)
 
 
-def run_download(place: str | None, bbox: str | None, output_path: Path, output_format: str) -> dict[str, Any]:
+def run_download(
+    place: str | None,
+    bbox: str | None,
+    output_path: Path,
+    output_format: str,
+    preset: str = "all",
+) -> dict[str, Any]:
     """Execute full download pipeline and write output file.
 
     Parameters
@@ -54,6 +60,8 @@ def run_download(place: str | None, bbox: str | None, output_path: Path, output_
         Destination path for output file.
     output_format:
         Either `"geojson"` or `"gpkg"`.
+    preset:
+        OSM query preset (`"all"`, `"roads"`, `"buildings"`, or `"pois"`).
 
     Returns
     -------
@@ -67,7 +75,7 @@ def run_download(place: str | None, bbox: str | None, output_path: Path, output_
     """
 
     resolved_bbox = resolve_bbox(place=place, bbox=bbox)
-    feature_collection = fetch_geojson_features(resolved_bbox)
+    feature_collection = fetch_geojson_features(resolved_bbox, preset=preset)
 
     if output_format == "geojson":
         write_geojson(feature_collection, output_path)

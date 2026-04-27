@@ -1,7 +1,7 @@
 import requests
 
 from osm_area_downloader.bbox import BoundingBox
-from osm_area_downloader.exceptions import DownloadError
+from osm_area_downloader.exceptions import DownloadError, InputError
 from osm_area_downloader.overpass import build_query, fetch_geojson_features, osm_json_to_geojson
 
 
@@ -30,9 +30,33 @@ class DummySession:
 
 
 def test_build_query_includes_bbox() -> None:
-    text = build_query(BoundingBox(-0.5, 51.2, 0.3, 51.8))
+    text = build_query(BoundingBox(-0.5, 51.2, 0.3, 51.8), preset="all")
     assert "node" in text
     assert "(51.2,-0.5,51.8,0.3)" in text
+
+
+def test_build_query_presets() -> None:
+    bbox = BoundingBox(-0.5, 51.2, 0.3, 51.8)
+    roads = build_query(bbox, preset="roads")
+    buildings = build_query(bbox, preset="buildings")
+    pois = build_query(bbox, preset="pois")
+
+    assert "way[highway]" in roads
+    assert "relation[type=route][route=road]" in roads
+    assert "way[building]" in buildings
+    assert "relation[building]" in buildings
+    assert "node[amenity]" in pois
+    assert "node[tourism]" in pois
+    assert "node[shop]" in pois
+
+
+def test_build_query_rejects_unknown_preset() -> None:
+    try:
+        build_query(BoundingBox(-0.5, 51.2, 0.3, 51.8), preset="water")
+    except InputError as exc:
+        assert "preset" in str(exc)
+    else:
+        raise AssertionError("Expected InputError")
 
 
 def test_osm_json_to_geojson_converts_node_way_and_polygon() -> None:
@@ -69,7 +93,7 @@ def test_osm_json_to_geojson_converts_node_way_and_polygon() -> None:
 def test_fetch_geojson_features_success() -> None:
     payload = {"elements": [{"type": "node", "id": 1, "lat": 1, "lon": 2}]}
     session = DummySession(response=DummyResponse(payload))
-    result = fetch_geojson_features(BoundingBox(-1, -1, 1, 1), session=session)
+    result = fetch_geojson_features(BoundingBox(-1, -1, 1, 1), preset="roads", session=session)
     assert len(result["features"]) == 1
 
 

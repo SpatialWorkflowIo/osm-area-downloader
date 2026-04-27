@@ -24,7 +24,20 @@ def _infer_format(output: Path, selected: str | None) -> str:
 @click.option("--bbox", type=str, help="BBox: minlon,minlat,maxlon,maxlat")
 @click.option("--output", required=True, type=click.Path(path_type=Path), help="Output file path")
 @click.option("--format", "output_format", type=click.Choice(["geojson", "gpkg"]), default=None)
-def main(place: str | None, bbox: str | None, output: Path, output_format: str | None) -> None:
+@click.option(
+    "--preset",
+    type=click.Choice(["all", "roads", "buildings", "pois"]),
+    default="all",
+    show_default=True,
+    help="Feature filter preset for Overpass queries.",
+)
+def main(
+    place: str | None,
+    bbox: str | None,
+    output: Path,
+    output_format: str | None,
+    preset: str,
+) -> None:
     """Download OSM features for a place or bbox and save them locally.
 
     Parameters
@@ -37,6 +50,8 @@ def main(place: str | None, bbox: str | None, output: Path, output_format: str |
         Path to resulting file.
     output_format:
         Optional explicit output format.
+    preset:
+        Query preset (`"all"`, `"roads"`, `"buildings"`, or `"pois"`).
 
     Examples
     --------
@@ -52,6 +67,7 @@ def main(place: str | None, bbox: str | None, output: Path, output_format: str |
             bbox=bbox,
             output_path=output,
             output_format=chosen_format,
+            preset=preset,
         )
     except (InputError, DownloadError) as exc:
         raise click.ClickException(str(exc)) from exc

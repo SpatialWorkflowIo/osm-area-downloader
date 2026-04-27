@@ -7,18 +7,21 @@ from typing import Any
 import requests
 
 from .bbox import BoundingBox
-from .exceptions import DownloadError
+from .exceptions import DownloadError, InputError
 
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 
 
-def build_query(bbox: BoundingBox) -> str:
-    """Build an Overpass QL query for nodes, ways, and relations.
+def build_query(bbox: BoundingBox, preset: str = "all") -> str:
+    """Build an Overpass QL query for selected OSM feature presets.
 
     Parameters
     ----------
     bbox:
         Bounding box used to filter OSM features.
+
+    preset:
+        Preset name: `"all"`, `"roads"`, `"buildings"`, or `"pois"`.
 
     Returns
     -------
@@ -27,25 +30,41 @@ def build_query(bbox: BoundingBox) -> str:
 
     Examples
     --------
-    >>> "node" in build_query(BoundingBox(1, 2, 3, 4))
+    >>> "node" in build_query(BoundingBox(1, 2, 3, 4), preset="all")
     True
     """
 
     south, west, north, east = bbox.to_overpass_tuple()
     area = f"({south},{west},{north},{east})"
+    statements = _preset_statements(area, preset)
     return (
         "[out:json][timeout:30];"
-        "("  # Collect common OSM geometry types.
-        f"node{area};"
-        f"way{area};"
-        f"relation{area};"
+        "("  # Collect preset-specific OSM geometry types.
+        f"{statements}"
         ");"
         "out body geom;"
     )
 
 
+def _preset_statements(area: str, preset: str) -> str:
+    if preset == "all":
+        return f"node{area};way{area};relation{area};"
+    if preset == "roads":
+        return f"way[highway]{area};relation[type=route][route=road]{area};"
+    if preset == "buildings":
+        return f"way[building]{area};relation[building]{area};"
+    if preset == "pois":
+        return (
+            f"node[amenity]{area};way[amenity]{area};relation[amenity]{area};"
+            f"node[tourism]{area};way[tourism]{area};relation[tourism]{area};"
+            f"node[shop]{area};way[shop]{area};relation[shop]{area};"
+        )
+    raise InputError("preset must be one of: all, roads, buildings, pois")
+
+
 def fetch_geojson_features(
     bbox: BoundingBox,
+    preset: str = "all",
     timeout: int = 60,
     session: requests.Session | None = None,
 ) -> dict[str, Any]:
@@ -55,6 +74,8 @@ def fetch_geojson_features(
     ----------
     bbox:
         Bounding box used for querying.
+    preset:
+        Preset name: `"all"`, `"roads"`, `"buildings"`, or `"pois"`.
     timeout:
         Request timeout in seconds.
     session:
@@ -73,7 +94,7 @@ def fetch_geojson_features(
     """
 
     active_session = session or requests.Session()
-    query = build_query(bbox)
+    query = build_query(bbox, preset=preset)
 
     try:
         response = active_session.post(OVERPASS_URL, data={"data": query}, timeout=timeout)
